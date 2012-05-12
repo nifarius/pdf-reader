@@ -16,7 +16,7 @@ module PDF
       end
 
       def level
-        parent ? parent.level + 1 : 1
+        @parent ? @parent.level + 1 : 1
       end
 
       def find_page(object, objects)
