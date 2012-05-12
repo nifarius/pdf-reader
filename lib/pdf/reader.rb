@@ -288,24 +288,36 @@ module PDF
       reference = @objects.deref(object)
 
       bookmark = PDF::Reader::Bookmark.new(reference)
+
+      # Find a page number pointed to by the bookmark
       if reference.has_key?(:A)
         bookmark.find_page(reference[:A], @objects)
       end
+
+      # Save to list only root bookmarks
       if parent.kind_of?(Array)
         parent << bookmark
       else
         bookmark.parent = parent
       end
 
+      # Render first bookmark on next level
       if reference.has_key?(:First)
         render_bookmarks(reference[:First], bookmark)
       end
 
+      # Render next bookmark on this level
       if reference.has_key?(:Next)
         render_bookmarks(reference[:Next], parent)
       end
 
-      parent.kind_of?(Array) ? parent : bookmark
+      # Last bookmark in root level
+      if parent.kind_of?(Array) && !reference.has_key?(:Next)
+        bookmark.end_page = page_count
+      end
+
+      # return only list of root bookmarks
+      parent.kind_of?(Array) ? parent : nil
     end
 
     # recursively convert strings from outside a content stream into UTF-8
