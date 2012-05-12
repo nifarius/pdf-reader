@@ -274,7 +274,39 @@ module PDF
       @objects.deref(Reference.new(id, gen))
     end
 
+    def outlines
+      @outlines ||= @objects.deref(root[:Outlines])
+    end
+
+    def bookmarks
+      @bookmarks ||= render_bookmarks(outlines[:First])
+    end
+
     private
+
+    def render_bookmarks(object, parent = [])
+      reference = @objects.deref(object)
+
+      bookmark = PDF::Reader::Bookmark.new(reference)
+      if reference.has_key?(:A)
+        bookmark.find_page(reference[:A], @objects)
+      end
+      if parent.kind_of?(Array)
+        parent << bookmark
+      else
+        bookmark.parent = parent
+      end
+
+      if reference.has_key?(:First)
+        render_bookmarks(reference[:First], bookmark)
+      end
+
+      if reference.has_key?(:Next)
+        render_bookmarks(reference[:Next], parent)
+      end
+
+      parent.kind_of?(Array) ? parent : bookmark
+    end
 
     # recursively convert strings from outside a content stream into UTF-8
     #
@@ -360,3 +392,4 @@ require 'pdf/reader/token'
 require 'pdf/reader/xref'
 require 'pdf/reader/page'
 require 'pdf/hash'
+require 'pdf/reader/bookmark'
