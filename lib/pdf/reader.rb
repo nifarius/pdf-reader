@@ -206,7 +206,51 @@ module PDF
       PDF::Reader::Page.new(@objects, num, :cache => @cache)
     end
 
+    def outlines
+      @outlines ||= @objects.deref(root[:Outlines])
+    end
+
+    def bookmarks
+      @bookmarks ||= render_bookmarks(outlines[:First])
+    end
+
     private
+
+    def render_bookmarks(object, parent = [])
+      reference = @objects.deref(object)
+
+      bookmark = PDF::Reader::Bookmark.new(reference)
+
+      # Find a page number pointed to by the bookmark
+      if reference.has_key?(:A)
+        bookmark.find_page(reference[:A], @objects)
+      end
+
+      # Save to list only root bookmarks
+      if parent.kind_of?(Array)
+        parent << bookmark
+      else
+        bookmark.parent = parent
+      end
+
+      # Render first bookmark on next level
+      if reference.has_key?(:First)
+        render_bookmarks(reference[:First], bookmark)
+      end
+
+      # Render next bookmark on this level
+      if reference.has_key?(:Next)
+        render_bookmarks(reference[:Next], parent)
+      end
+
+      # Last bookmark in root level
+      if parent.kind_of?(Array) && !reference.has_key?(:Next)
+        bookmark.end_page = page_count
+      end
+
+      # return only list of root bookmarks
+      parent.kind_of?(Array) ? parent : nil
+    end
 
     # recursively convert strings from outside a content stream into UTF-8
     #
@@ -302,3 +346,4 @@ require 'pdf/reader/xref'
 require 'pdf/reader/orientation_detector'
 require 'pdf/reader/page'
 require 'pdf/hash'
+require 'pdf/reader/bookmark'
